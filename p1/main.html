@@ -2,18 +2,111 @@
 <html>
     <head>
 
-    </head>
-    <body>
+        <style>
+            #ball
+            {
+                width:50px;
+                height:50px;
+                background-color:red;
+                border:1px solid black;
+                border-radius:25px;
+                box-shadow: 10px 10px 5px #888888;
+                top:50px;
+                left:50px;
+                position: absolute;
+            }
+        </style>
         <!------ Java Script ------>
         <script>
-            document.getElementById('debugDiv').innerHTML = "Testing debugDiv"
+            var D0;
+            function startup() {
+                window.addEventListener("touchstart", handleStart, false);
+                window.addEventListener("touchend", handleEnd, false);
+
+                // Motion and orientation events
+                if (window.DeviceOrientationEvent) {
+                    window.addEventListener('deviceorientation', handleOrientation, false);
+                } else {
+                    message3("Device orientation not supported on this device")
+                }
+
+                // Initialize globals
+            }
+
+            function handleStart(evt) {
+                evt.preventDefault();
+                message("Touch started")
+            }
+
+            function handleEnd(evt) {
+                evt.preventDefault();
+                message("Touch ended")
+            }
+
+            function handleOrientation(evt) {
+
+                ballobj = document.getElementById('ball');
+
+                var xpos = ballobj.offsetLeft;
+                var ypos = ballobj.offsetTop;
+
+                var orientStr = "[" + evt.alpha + ", " + evt.beta + ", " + evt.gamma + "]";
+                //message3(orientStr);
+
+                var dtor = Math.PI/180;
+                var roll = (evt.gamma)*dtor; // -90 to +90
+                var pitch = (evt.beta)*dtor; // -180 to +180
+
+                var xplier = 300;
+                var dx = roll*xplier;
+                var dy = pitch*xplier;
+
+                var x = xpos+Math.round(dx);
+                var y = ypos+Math.round(dy);
+
+                // Check the new position - if it interferes with any obstacles
+                var r = 0;
+                if (x > 400) x = 400 - (x-400)*r;
+                if (x < 0) x = -x*r;
+                if (y > 600) y = 600 - (y-600)*r;
+                if (y < 0) y = -y*r;
+
+                // Draw the ball
+                ballobj.style.left = x+'px';
+                ballobj.style.top = y+'px';
+            }
+
+            function message(msg) {
+                document.getElementById('debugDiv').innerHTML = msg;
+            }
+            function message2(msg) {
+                document.getElementById('debugDiv2').innerHTML = msg;
+            }
+            function message3(msg) {
+                document.getElementById('debugDiv3').innerHTML = msg;
+            }
+            function message4(msg) {
+                document.getElementById('debugDiv4').innerHTML = msg;
+            }
+            function message5(msg) {
+                document.getElementById('debugDiv5').innerHTML = msg;
+            }
+
         </script>
+    </head>
+    <body onload="startup()">
 
         <!------- Main Buttons ------>
         <a href="game.html">New Game</a><br>
         <a href="scores.html">Scores</a><br>
-        <a >Quit</a><br>
+        <a >Quit7</a><br>
 
-        <div id="debugDiv"></div>
+        <div id="ball"></div>
+
+        <div id="debugDiv"></div><br>
+        <div id="debugDiv2"></div>
+        <div id="debugDiv3"></div>
+        <div id="debugDiv4"></div>
+        <div id="debugDiv5"></div>
     </body>
 </html>
