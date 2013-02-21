@@ -3,22 +3,43 @@
     <head>
 
         <style>
-            #ball
-            {
+            #board {
+                border:1px solid blue;
+                position:absolute;
+                top:100px;
+                left:50px;
+                width:900px;
+                height:450px;
+                background-color:#ffd700;
+            }
+            #ball {
                 width:50px;
                 height:50px;
-                background-color:red;
+                background-color:blue;
                 border:1px solid black;
                 border-radius:25px;
-                box-shadow: 10px 10px 5px #888888;
-                top:50px;
+                box-shadow: 2px 2px 5px #888888;
+                top:200px;
                 left:50px;
-                position: absolute;
+                position:absolute;
             }
+            #obs1 {
+                background-color:#00008b;
+                position:absolute;
+            }
+            .obsclass {
+                background-color:green;
+                position:absolute;
+            }
+
         </style>
         <!------ Java Script ------>
         <script>
-            var D0;
+            var boardobj, obsobj, obsarray, ballobj;
+            var boardtop, boardleft, boardwidth, boardheight;
+            var obstop, obsleft, obswidth, obsheight;
+            var dxMax, dyMax;
+
             function startup() {
                 window.addEventListener("touchstart", handleStart, false);
                 window.addEventListener("touchend", handleEnd, false);
@@ -31,53 +52,252 @@
                 }
 
                 // Initialize globals
+                boardobj = document.getElementById('board');
+                boardtop = boardobj.offsetTop;
+                boardleft = boardobj.offsetLeft;
+                boardwidth = boardobj.clientWidth;
+                boardheight = boardobj.clientHeight;
+
+                // Setup dxMax and dyMax
+                dxMax = boardwidth*0.05;
+                dyMax = boardheight*0.05;
+
+
+                // Multiple obstacles
+                var obsStr = "";
+                var numObstacles = 6;
+                var numXSects = 2;
+                var numYSects = Math.round(numObstacles/numXSects);
+                var boardDeltaX = boardwidth/numXSects;
+                var boardDeltaY = boardheight/numYSects;
+
+                for (var i=0; i < numObstacles; i++) {
+                    var obsid = 'obstacle_'+ i.toString();
+                    obsStr += "<div class='obsclass' id='"+obsid+"'></div><br>"
+                }
+                document.getElementById('obstacles').innerHTML = obsStr;
+                console.log(obsStr);
+
+                // Set the obstacle locations
+                obsdivarray = document.getElementsByClassName('obsclass');
+                obsarray = new Array();
+                for (var i=0; i < obsdivarray.length; i++) {
+
+                    // Initialize the dimensions
+                    var obsObj = new Object();
+                    obsarray[i] = obsObj;
+
+                    var xoff = boardleft;
+                    var yoff = boardtop;
+                    var bdx = boardDeltaX;
+                    var bdy = boardDeltaY;
+                    var ii = i%numXSects;
+                    var jj = Math.round((i/numXSects)-0.5)%numYSects;
+                    console.log(ii,jj)
+
+                    initLocation(obsObj, xoff+bdx*ii, xoff+bdx*(ii+1), yoff+bdy*jj, yoff+bdy*(jj+1), bdx/4, bdx, bdy/4, bdy);
+
+                    // Draw the obstacles
+                    obsdivarray[i].style.left   = obsObj.left+'px';
+                    obsdivarray[i].style.top    = obsObj.top+'px';
+                    obsdivarray[i].style.width  = obsObj.width+'px';
+                    obsdivarray[i].style.height = obsObj.height+'px';
+                }
             }
 
+            // This function initializes the location of the object obj randomly
+            function initLocation(obj, xmin, xmax, ymin, ymax, wmin, wmax, hmin, hmax) {
+                // Type of object:
+                // 1 => wooden obstacle, 2 => fire obstacle, 3 => gold coin
+                obj.type = getRandom(1,3);
+                obj.width = getRandom(wmin, wmax);
+                obj.height = getRandom(hmin, hmax);
+                obj.left = getRandom(xmin, xmax-obj.width);
+                obj.top = getRandom(ymin, ymax-obj.height);
+                console.log(obj)
+            }
+
+            // This function returns a random number in the specified range
+            function getRandom(min, max) {
+                var num = Math.round(min + Math.random()*(max-min));
+                return num;
+            }
             function handleStart(evt) {
                 evt.preventDefault();
-                message("Touch started")
+                message1("Touch started")
             }
 
             function handleEnd(evt) {
                 evt.preventDefault();
-                message("Touch ended")
+                message1("Touch ended")
             }
 
             function handleOrientation(evt) {
 
                 ballobj = document.getElementById('ball');
 
+                var rad = ballobj.clientWidth/2.0;
+                var dia = 2*rad;
                 var xpos = ballobj.offsetLeft;
                 var ypos = ballobj.offsetTop;
 
                 var orientStr = "[" + evt.alpha + ", " + evt.beta + ", " + evt.gamma + "]";
-                //message3(orientStr);
+                message2(orientStr);
 
                 var dtor = Math.PI/180;
-                var roll = (evt.gamma)*dtor; // -90 to +90
+                var roll = (-evt.gamma)*dtor; // -90 to +90
                 var pitch = (evt.beta)*dtor; // -180 to +180
 
                 var xplier = 300;
-                var dx = roll*xplier;
-                var dy = pitch*xplier;
+                var dx = pitch*xplier;
+                var dy = roll*xplier;
+                if (dx > dxMax) dx = dxMax;
+                if (dy > dyMax) dy = dyMax;
 
                 var x = xpos+Math.round(dx);
                 var y = ypos+Math.round(dy);
 
-                // Check the new position - if it interferes with any obstacles
-                var r = 0;
-                if (x > 400) x = 400 - (x-400)*r;
-                if (x < 0) x = -x*r;
-                if (y > 600) y = 600 - (y-600)*r;
-                if (y < 0) y = -y*r;
+                // Loop over all obstacles - check external collision
+                var collisionData = new Array();
+                var numCollisions = 0, idxCollision = 0;
+                for (var i=0; i < obsarray.length; i++) {
 
-                // Draw the ball
-                ballobj.style.left = x+'px';
-                ballobj.style.top = y+'px';
+                    collisionData[i] = checkCollision(ballobj, x, y, obsarray[i], 1);
+
+                    //drawBall(xpos, ypos, collisionData);
+                    // Draw the ball
+                    if (collisionData[i].collision == 1) {
+                        numCollisions = numCollisions+1;
+                        idxCollision = i;
+                    }
+                }
+
+                var collisioncheck;
+                if (numCollisions <= 1) {
+                    var drawBall = true;
+                    var xcheck, ycheck;
+                    if (numCollisions == 0) {
+                        xcheck = x;
+                        ycheck = y;
+                    }
+                    else {
+                        xcheck = collisionData[idxCollision].x;
+                        ycheck = collisionData[idxCollision].y;
+
+                        for (var i=0; i < collisionData.length; i++) {
+                            if (i == idxCollision) continue;
+                            collisioncheck = checkCollision(ballobj, xcheck, ycheck, obsarray[i], 1);
+                            if (collisioncheck.collision == 1) {
+                                // Another collision exists, don't move the ball
+                                drawBall = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (drawBall) {
+                        if (numCollisions == 0) {
+                            x = xcheck;
+                            y = ycheck;
+                            ballobj.style.backgroundColor = 'blue';
+                        }
+                        else {
+                            x = collisioncheck.x;
+                            y = collisioncheck.y;
+
+                            ballobj.style.backgroundColor = 'red';
+                        }
+
+                        // Check if within the boundaries of the board or not
+                        var Lx = boardleft + boardwidth-dia;
+                        var Ly = boardtop + boardheight-dia;
+
+                        var r = 0;
+                        if (x > Lx) x = Lx - (x-Lx)*r;
+                        if (x < boardleft) x = boardleft + (boardleft-x)*r;
+                        if (y > Ly) y = Ly - (y-Ly)*r;
+                        if (y < boardtop) y = boardtop + (boardtop-y)*r;
+
+                        // Draw the ball
+                        ballobj.style.left = x+'px';
+                        ballobj.style.top = y+'px';
+                    }
+                }
+
+                var ballLocation = "[Ball with board = (" + x + ", " + y + ")]";
+                message5(ballLocation);
+
+
+                // Check collision internal
+                //checkCollision(ballobj, board, 0)
             }
 
-            function message(msg) {
-                document.getElementById('debugDiv').innerHTML = msg;
+            function checkCollision(ball, newx, newy, obsobj, external) {
+                // Check the new position - if it interferes with any obstacles
+
+                var dia = ballobj.clientWidth;
+                var xleft = obsobj.left - dia;
+                var xright = obsobj.left + obsobj.width;
+                var ytop = obsobj.top - dia;
+                var ybottom = obsobj.top + obsobj.height;
+
+                var x = ballobj.offsetLeft;
+                var y = ballobj.offsetTop;
+
+                var obsLocation = "[Obstacle = (" + obsobj.left + ", " + obsobj.top + "), (" + xright + ", " + ybottom + ")]";
+                message3(obsLocation);
+                var ballLocation = "[Ball with obstacle = (" + x + ", " + y + ")]";
+                message4(ballLocation);
+                var collision = false;
+
+                if (external == 1) {
+                    if ((newx > xleft && newx <= xright) && (newy > ytop && newy <= ybottom))
+                    {
+                        // Collision detected - change the ball position
+                        //ballobj.style.backgroundColor = 'red';
+                        collision = true;
+
+                        if (x <= xleft) {
+                            newx = xleft;
+                        }
+                        if (x >= xright) {
+                            newx = xright;
+                        }
+                        if (y <= ytop) {
+                            newy = ytop;
+                        }
+                        if (y >= ybottom) {
+                            newy = ybottom;
+                        }
+                    }
+                    else
+                    {
+                        // No collision
+                        //ballobj.style.backgroundColor = 'blue';
+                    }
+                }
+                else {
+
+                }
+                return {'collision':collision,  'x':newx, 'y':newy};
+            }
+
+            function drawBall(xpos, ypos, collisionData)
+            {
+                var newx = xpos;
+                var newy = ypos;
+
+                if (collisionData.collision) {
+
+                }
+                // Draw the ball
+                ballobj.style.left = collisionData.x+'px';
+                ballobj.style.top = collisionData.y+'px';
+
+            }
+
+
+            function message1(msg) {
+                document.getElementById('debugDiv1').innerHTML = msg;
             }
             function message2(msg) {
                 document.getElementById('debugDiv2').innerHTML = msg;
@@ -91,6 +311,9 @@
             function message5(msg) {
                 document.getElementById('debugDiv5').innerHTML = msg;
             }
+            function message6(msg) {
+                document.getElementById('debugDiv6').innerHTML = msg;
+            }
 
         </script>
     </head>
@@ -99,14 +322,17 @@
         <!------- Main Buttons ------>
         <a href="game.html">New Game</a><br>
         <a href="scores.html">Scores</a><br>
-        <a >Quit7</a><br>
+        <a >Quit7</a>
 
+        <div id="board"></div>
+        <div id="obstacles"></div>
         <div id="ball"></div>
 
-        <div id="debugDiv"></div><br>
+        <div id="debugDiv1"></div><br>
         <div id="debugDiv2"></div>
         <div id="debugDiv3"></div>
         <div id="debugDiv4"></div>
         <div id="debugDiv5"></div>
+        <div id="debugDiv6"></div>
     </body>
 </html>
