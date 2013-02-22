@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <style>
+        #divBoard {
+            border:1px solid blue;
+            position:absolute;
+            top:0px;
+            left:0px;
+            background-color:#ffd700;
+        }
+        #divBall {
+            width:50px;
+            height:50px;
+            background-color:blue;
+            border:1px solid black;
+            border-radius:25px;
+            box-shadow: 2px 2px 5px #888888;
+            top:200px;
+            left:50px;
+            position:absolute;
+        }
+        .obstacles {
+            background-color:green;
+            position:absolute;
+        }
+
+    </style>
+    <!------ Java Script ------>
+    <script>
+
+        //-------------------------------------------------------------
+        // Define global variables
+        var Game = new Object;
+        Game.NumObstacles = 6;
+        Game.NumXSections = 3;
+        var DTOR = Math.PI/180;
+
+        //-------------------------------------------------------------
+        function StartUp() {
+
+            // Add event listeners
+            AddEventListeners();
+
+            // Initialize the game
+            InitializeGame();
+
+            // Setup the game board
+            SetupGameBoard();
+        }
+
+        //-------------------------------------------------------------
+        function AddEventListeners() {
+
+            // Motion and orientation events
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', HandleOrientation, false);
+            } else {
+                message3("Device orientation not supported on this device")
+            }
+
+        }
+
+        //-------------------------------------------------------------
+        function InitializeGame() {
+
+            // Get window size
+            var winWidth = window.innerWidth
+                            || document.documentElement.clientWidth
+                            || document.body.clientWidth;
+
+            var winHeight = window.innerHeight
+                            || document.documentElement.clientHeight
+                            || document.body.clientHeight;
+
+            // Board
+            var divBoard = document.getElementById('divBoard');
+            divBoard.style.width = winWidth+'px';
+            divBoard.style.height = winHeight+'px';
+            Game.Board = new Rectangle(divBoard.offsetTop, divBoard.offsetLeft,
+                                       divBoard.clientWidth, divBoard.clientHeight);
+
+            // Ball
+            var divBall = document.getElementById('divBall');
+            Game.Ball = new Rectangle(divBall.offsetTop, divBall.offsetLeft,
+                                      divBall.clientWidth, divBall.clientHeight);
+            Game.Ball.Dia = divBall.clientWidth;
+
+            // Obstacles
+            Game.Obstacles = new Array(Game.NumObstacles);
+
+            // Setup DxMax and DyMax - 5% of that dimension
+            Game.DxMax = Game.Board.Width*0.05;
+            Game.DyMax = Game.Board.Height*0.05;
+
+        }
+
+        //-------------------------------------------------------------
+        function SetupGameBoard() {
+
+            // Multiple obstacles
+            var numObstacles = Game.NumObstacles;
+            var numXSects = Game.NumXSections;
+            var numYSects = Math.round(numObstacles/numXSects);
+            var boardDeltaX = Game.Board.Width/numXSects;
+            var boardDeltaY = Game.Board.Height/numYSects;
+
+            // Create the divs for the obstacles
+            var obsStr = "";
+            for (var i=0; i < numObstacles; i++) {
+                var obsid = 'obstacle_'+ i.toString();
+                obsStr += "<div class='obstacles' id='"+obsid+"'></div><br>"
+            }
+            document.getElementById('divObstacles').innerHTML = obsStr;
+
+            // Set the obstacle locations
+            obsdivarray = document.getElementsByClassName('obstacles');
+            for (var i=0; i < obsdivarray.length; i++) {
+
+                // Initialize the dimensions
+                var obsObj = new Object();
+                Game.Obstacles[i] = obsObj;
+
+                var xoff = Game.Board.Left;
+                var yoff = Game.Board.Top;
+                var bdx = boardDeltaX;
+                var bdy = boardDeltaY;
+                var ii = i%numXSects;
+                var jj = Math.round((i/numXSects)-0.5)%numYSects;
+                console.log(ii,jj)
+
+                PlaceObstacle(obsObj, xoff+bdx*ii, xoff+bdx*(ii+1), yoff+bdy*jj, yoff+bdy*(jj+1), bdx/4, bdx, bdy/4, bdy);
+
+                // Draw the obstacles
+                obsdivarray[i].style.left   = obsObj.Left+'px';
+                obsdivarray[i].style.top    = obsObj.Top+'px';
+                obsdivarray[i].style.width  = obsObj.Width+'px';
+                obsdivarray[i].style.height = obsObj.Height+'px';
+            }
+
+        }
+
+        // Event handler
+        //-------------------------------------------------------------
+        function HandleOrientation(event) {
+
+            // Initialize local variables
+            var xCurrent = Game.Ball.Left;
+            var yCurrent = Game.Ball.Top;
+            var dia = Game.Ball.Dia;
+            var divBall = document.getElementById('divBall');
+
+            // Read the orientation angles
+            var roll = (-event.gamma)*DTOR; // -90 to +90
+            var pitch = (event.beta)*DTOR; // -180 to +180
+
+            // Compute the new position
+            var xplier = 300;
+            var dx = pitch*xplier;
+            var dy = roll*xplier;
+            if (dx > Game.DxMax) dx = Game.DxMax;
+            if (dy > Game.DyMax) dy = Game.DyMax;
+            var xNew = xCurrent + Math.round(dx);
+            var yNew = yCurrent + Math.round(dy);
+
+            // Check if the new position is inside the board and make adjustments if necessary
+            var collision1 = CheckCollisionInside(xNew, yNew, Game.Board.Left, Game.Board.Top, Game.Board.Width-dia, Game.Board.Height-dia);
+            xNew = collision1.x;
+            yNew = collision1.y;
+
+            // Check for collisions with any of the obstacles
+            var collision = false;
+            var collisionData = new Array();
+            var numCollisions = 0, idxCollision = 0;
+            for (var i = 0; i < Game.NumObstacles; i++) {
+                collisionData[i] = CheckCollisionOutside(xNew, yNew, xCurrent, yCurrent,
+                                                 Game.Obstacles[i].Left-dia, Game.Obstacles[i].Top-dia,
+                                                 Game.Obstacles[i].Width+dia, Game.Obstacles[i].Height+dia);
+
+                if (collisionData[i].collision) {
+                    numCollisions = numCollisions+1;
+                    idxCollision = i;
+                }
+            }
+
+            var drawBall = false;
+            if (numCollisions == 0) {
+                drawBall = true;
+                divBall.style.backgroundColor = 'blue';
+            }
+            else if (numCollisions == 1) {
+                var drawBall = true;
+                var xNew = collisionData[idxCollision].x;
+                var yNew = collisionData[idxCollision].y;
+                divBall.style.backgroundColor = 'red';
+            }
+
+            if (drawBall) {
+                divBall.style.left = xNew+'px';
+                divBall.style.top = yNew+'px';
+
+                // Update the Game.Ball object
+                Game.Ball.Left = xNew;
+                Game.Ball.Top = yNew;
+            }
+        }
+
+        //-------------------------------------------------------------
+        // Utility functions
+        //-------------------------------------------------------------
+
+        // This function places the obstacle randomly
+        //-------------------------------------------------------------
+        function Rectangle(top,left,width,height)
+        {
+            this.Top    = top;
+            this.Left   = left;
+            this.Width  = width;
+            this.Height = height;
+        }
+
+        // This function places the obstacle randomly
+        //-------------------------------------------------------------
+        function PlaceObstacle(objObstacle, xmin, xmax, ymin, ymax, wmin, wmax, hmin, hmax) {
+            // Type of object:
+            // 1 => wooden obstacle, 2 => fire obstacle, 3 => gold coin
+            objObstacle.Type = GetRandom(1,3);
+            objObstacle.Width = GetRandom(wmin, wmax);
+            objObstacle.Height = GetRandom(hmin, hmax);
+            objObstacle.Left = GetRandom(xmin, xmax-objObstacle.Width);
+            objObstacle.Top = GetRandom(ymin, ymax-objObstacle.Height);
+            console.log(objObstacle)
+        }
+
+        // This function returns a random number in the specified range
+        //-------------------------------------------------------------
+        function GetRandom(min, max) {
+            var num = Math.round(min + Math.random()*(max-min));
+            return num;
+        }
+
+        // This function checks if the point (x,y) is inside the rectangle
+        //--------------------------------------------------------------------
+        function IsInside(x, y, left, top, width, height) {
+            if (x > left && x < (left+width) && y > top && y < (top+height))
+                return true;
+            else
+                return false;
+        }
+
+        function CheckCollisionInside(x, y, left, top, width, height) {
+            var right = left+width;
+            var bottom = top+height;
+
+            if (x > right) x = right;
+            if (x < left) x = left;
+            if (y > bottom) y = bottom;
+            if (y < top) y = top;
+            return {'x':x, 'y':y};
+        }
+
+        function CheckCollisionOutside(x, y, xold, yold, left, top, width, height) {
+            var right = left+width;
+            var bottom = top+height;
+            var collision = false;
+
+            if ((x >= left && x <= right) && (y >= top && y <= bottom))
+            {
+                // Collision detected
+                collision = true;
+
+                if (xold <= left) {
+                    x = left;
+                }
+                if (xold >= right) {
+                    x = right;
+                }
+                if (yold <= top) {
+                    y = top;
+                }
+                if (yold >= bottom) {
+                    y = bottom;
+                }
+            }
+            return {'collision':collision,  'x':x, 'y':y};
+        }
+
+    </script>
+    </head>
+    <body onload="StartUp()">
+
+        <div id="divBoard"></div>
+        <div id="divObstacles"></div>
+        <div id="divBall"></div>
+
+        <div id="debugDiv1"></div><br>
+        <div id="debugDiv2"></div>
+        <div id="debugDiv3"></div>
+        <div id="debugDiv4"></div>
+        <div id="debugDiv5"></div>
+        <div id="debugDiv6"></div>
+    </body>
+</html>
