@@ -3,10 +3,53 @@
 <head>
 
     <style>
+
+        #divMessage1 {
+            border:0px solid blue;
+            position:absolute;
+            background-color:#ffffe0;
+        }
+
+        #divMessage2 {
+            border:0px solid blue;
+            position:absolute;
+            background-color:#ffffe0;
+        }
+
+        #divHighScores {
+            border:0px solid blue;
+            position:absolute;
+            background-color:#ffffe0;
+        }
+
+        #divRecalibrate {
+            border:0px solid blue;
+            position:absolute;
+            background-color:#ffffe0;
+        }
+
+        #divPause {
+            border:0px solid blue;
+            position:absolute;
+            background-color:#ffffe0;
+        }
+
+        #divTime {
+            border:0px solid blue;
+            position:absolute;
+            background-color:#ffffe0;
+        }
+
+        #divScore {
+            border:0px solid blue;
+            position:absolute;
+            background-color:#ffffe0;
+        }
+
+
         #divBoard {
             border:1px solid blue;
             position:absolute;
-            top:0px;
             left:0px;
             background-color:#ffd700;
         }
@@ -32,10 +75,21 @@
 
         //-------------------------------------------------------------
         // Define global variables
+        var WinWidth, WinHeight;
         var Game = new Object;
         Game.NumObstacles = 6;
         Game.NumXSections = 3;
         var DTOR = Math.PI/180;
+
+        // Board layout related variables
+        var DiaPct = 4;
+        var BoardTopPct = 5;
+        var BoardCols = [[0,20],[25,45],[55,75],[80,100]];
+        var BoardRows = [[5,25],[30,50],[55,75],[80,100]];
+        var Filled = new Array(4);
+        for (var i=0; i < 4; i++) {
+            Filled[i] = new Array(4);
+        }
 
         //-------------------------------------------------------------
         function StartUp() {
@@ -66,23 +120,30 @@
         function InitializeGame() {
 
             // Get window size
-            var winWidth = window.innerWidth
+            WinWidth = window.innerWidth
                             || document.documentElement.clientWidth
                             || document.body.clientWidth;
 
-            var winHeight = window.innerHeight
+            WinHeight = window.innerHeight
                             || document.documentElement.clientHeight
                             || document.body.clientHeight;
 
             // Board
             var divBoard = document.getElementById('divBoard');
-            divBoard.style.width = winWidth+'px';
-            divBoard.style.height = winHeight+'px';
+            divBoard.style.width = WinWidth+'px';
+            divBoard.style.height = Math.round(WinHeight*(1-BoardTopPct/100))+'px';
+            divBoard.style.top = Math.round(WinHeight*BoardTopPct/100)+'px';
             Game.Board = new Rectangle(divBoard.offsetTop, divBoard.offsetLeft,
                                        divBoard.clientWidth, divBoard.clientHeight);
 
+            // Setup Menu
+            SetupMenu();
+
             // Ball
             var divBall = document.getElementById('divBall');
+            divBall.style.width = Math.round(WinHeight*DiaPct/100)+'px';
+            divBall.style.height = divBall.style.width;
+            divBall.style.borderRadius = Math.round(WinHeight*DiaPct/100/2)+'px';
             Game.Ball = new Rectangle(divBall.offsetTop, divBall.offsetLeft,
                                       divBall.clientWidth, divBall.clientHeight);
             Game.Ball.Dia = divBall.clientWidth;
@@ -90,11 +151,78 @@
             // Obstacles
             Game.Obstacles = new Array(Game.NumObstacles);
 
-            // Setup DxMax and DyMax - 5% of that dimension
+            // Reset the Filled array
+            for (var i=0; i < 4; i++) {
+                for (var j=0; j < 4; j++) {
+                    Filled[i][j]=0;
+                }
+            }
+
+                // Setup DxMax and DyMax - 5% of that dimension
             Game.DxMax = Game.Board.Width*0.05;
             Game.DyMax = Game.Board.Height*0.05;
 
         }
+
+        // Setup Menu
+        //-------------------------------------------------------------
+        function SetupMenu() {
+            var x1=0.0, x2=0.25, x3=0.5, x4=0.6, x5=0.7, x6=0.8, x7=0.9, x8=1.0;
+            var menuHeight = Math.round(WinHeight*BoardTopPct/100);
+
+            // Message 1
+            var divMessage1 = document.getElementById('divMessage1');
+            divMessage1.style.top = '0px';
+            divMessage1.style.left = '0px';
+            divMessage1.style.width = Math.round(WinWidth*(x2-x1))+'px';
+            divMessage1.style.height = menuHeight+'px';
+            divMessage1.innerHTML = 'Welcome John';
+
+            // Message 2
+            var divMessage2 = document.getElementById('divMessage2');
+            divMessage2.style.top = '0px';
+            divMessage2.style.left = Math.round(WinWidth*x2)+'px';
+            divMessage2.style.width = Math.round(WinWidth*(x3-x2))+'px';
+            divMessage2.style.height = menuHeight+'px';
+            divMessage2.innerHTML = 'Ball 1 of 3';
+
+            // High Scores
+            var divHighScores = document.getElementById('divHighScores');
+            divHighScores.style.top = '0px';
+            divHighScores.style.left = Math.round(WinWidth*x3)+'px';
+            divHighScores.style.width = Math.round(WinWidth*(x4-x3))+'px';
+            divHighScores.style.height = menuHeight+'px';
+
+            // Recalibrate
+            var divRecalibrate = document.getElementById('divRecalibrate');
+            divRecalibrate.style.top = '0px';
+            divRecalibrate.style.left = Math.round(WinWidth*x4)+'px';
+            divRecalibrate.style.width = Math.round(WinWidth*(x5-x4))+'px';
+            divRecalibrate.style.height = menuHeight+'px';
+
+            // Pause
+            var divPause = document.getElementById('divPause');
+            divPause.style.top = '0px';
+            divPause.style.left = Math.round(WinWidth*x5)+'px';
+            divPause.style.width = Math.round(WinWidth*(x6-x5))+'px';
+            divPause.style.height = menuHeight+'px';
+
+            // Time
+            var divTime = document.getElementById('divTime');
+            divTime.style.top = '0px';
+            divTime.style.left = Math.round(WinWidth*x6)+'px';
+            divTime.style.width = Math.round(WinWidth*(x7-x6))+'px';
+            divTime.style.height = menuHeight+'px';
+
+            // Score
+            var divScore = document.getElementById('divScore');
+            divScore.style.top = '0px';
+            divScore.style.left = Math.round(WinWidth*x7)+'px';
+            divScore.style.width = Math.round(WinWidth*(x8-x7))+'px';
+            divScore.style.height = menuHeight+'px';
+        }
+
+
 
         //-------------------------------------------------------------
         function SetupGameBoard() {
@@ -293,6 +421,13 @@
         <div id="divBoard"></div>
         <div id="divObstacles"></div>
         <div id="divBall"></div>
+        <div id="divMessage1"></div>
+        <div id="divMessage2"></div>
+        <button type="button" id="divHighScores">High Scores</button>
+        <button type="button" id="divRecalibrate">Recalibrate</button>
+        <button type="button" id="divPause">Pause</button>
+        <div id="divTime">Time Taken</div>
+        <div id="divScore">Your Score</div>
 
         <div id="debugDiv1"></div><br>
         <div id="debugDiv2"></div>
