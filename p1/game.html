@@ -51,22 +51,21 @@
             border:1px solid blue;
             position:absolute;
             left:0px;
-            background-color:#ffd700;
+            background:url(stone.jpeg);
         }
         #divBall {
-            width:50px;
-            height:50px;
-            background-color:blue;
-            border:1px solid black;
-            border-radius:25px;
-            box-shadow: 2px 2px 5px #888888;
+            background:url(goldball.png);
+            background-size:contain;
+            border:0px solid black;
+            box-shadow: 3px 3px 3px black;
             top:200px;
             left:50px;
             position:absolute;
         }
-        .obstacles {
-            background-color:green;
+        .divObsWood {
+            background:url(wood.jpeg);
             position:absolute;
+            box-shadow: 5px 5px 5px black;
         }
 
     </style>
@@ -79,6 +78,14 @@
         var Game = new Object;
         Game.NumObstacles = 6;
         Game.NumXSections = 3;
+
+        // Game levels
+        Game.NumLevels = 3;
+        Game.Level = 2; //0, 1 or 2
+        Game.NumWoods = [4, 5, 6];
+        Game.NumFires = [3, 4, 5];
+        Game.NumGolds = [1, 2, 3];
+
         var DTOR = Math.PI/180;
 
         // Board layout related variables
@@ -151,6 +158,16 @@
             // Obstacles
             Game.Obstacles = new Array(Game.NumObstacles);
 
+            // Wood, fire and gold obstacles
+            Game.Wood = new Array(Game.NumLevels);
+            Game.Fire = new Array(Game.NumLevels);
+            Game.Gold = new Array(Game.NumLevels);
+            for (var l = 0; l < Game.NumLevels; l++) {
+                Game.Wood[l] = new Array(Game.NumWoods[l]);
+                Game.Fire[l] = new Array(Game.NumFires[l]);
+                Game.Gold[l] = new Array(Game.NumGolds[l]);
+            }
+
             // Reset the Filled array
             for (var i=0; i < 4; i++) {
                 for (var j=0; j < 4; j++) {
@@ -158,10 +175,9 @@
                 }
             }
 
-                // Setup DxMax and DyMax - 5% of that dimension
-            Game.DxMax = Game.Board.Width*0.05;
-            Game.DyMax = Game.Board.Height*0.05;
-
+                // Setup DxMax and DyMax - same as ball dia
+            Game.DxMax = Game.Ball.Dia;
+            Game.DyMax = Game.Ball.Dia;
         }
 
         // Setup Menu
@@ -222,9 +238,76 @@
             divScore.style.height = menuHeight+'px';
         }
 
+        //-------------------------------------------------------------
+         function SetupGameBoard() {
+
+             // Loop through each level
+             for (var l = 0; l < Game.NumLevels; l++) {
+
+                 for (var i = 0; i < Game.NumWoods[l]; i++) {
+                     // Loop until an empty spot is found on the board
+                     while (1) {
+                         var rRow = GetRandom(0,3);
+                         var rCol = GetRandom(0,3);
+                         if (Filled[rRow][rCol] == 0)
+                            break;
+                     }
+
+                     // Empty spot found
+                     Game.Wood[l][i] = new Object();
+                     var xmin = Math.round(BoardCols[rCol][0]*WinWidth/100);
+                     var xmax = Math.round(BoardCols[rCol][1]*WinWidth/100);
+                     var ymin = Math.round(BoardRows[rRow][0]*WinHeight/100);
+                     var ymax = Math.round(BoardRows[rRow][1]*WinHeight/100);
+                     var wmin = Game.Ball.Dia;
+                     var wmax = xmax-xmin; //2*wmin; // or xmax-xmin
+                     var hmin = 2*Game.Ball.Dia;
+                     var hmax = ymax-ymin;
+
+                     var woodObj = new Object();
+                     PlaceObstacle(woodObj, xmin, xmax, ymin, ymax, wmin, wmax, hmin, hmax);
+                     Game.Wood[l][i] = woodObj;
+                     Filled[rRow][rCol]=1;
+                 }
+
+
+                 // Fire obstacles
+
+                 // Gold obstacles
+             }
+
+             //
+             // Draw the obstacles based on the current game level
+             //
+
+             // Get the current level
+             var level = Game.Level;
+
+             // Create the divs for the wood obstacles
+             var woodStr = "";
+             for (var i = 0; i < Game.NumWoods[level]; i++) {
+                 // Divs for the wood obstacles
+                 var woodid = 'wood_'+ i.toString();
+                 woodStr += "<div class='divObsWood' id='"+woodid+"'></div><br>"
+             }
+             document.getElementById('divWoodObstacles').innerHTML = woodStr;
+
+             var wooddivarray = document.getElementsByClassName('divObsWood');
+
+             // Draw the wood obstacles based on the current level
+             for (var i = 0; i < Game.NumWoods[level]; i++) {
+
+                 wooddivarray[i].style.left   = Game.Wood[level][i].Left+'px';
+                 wooddivarray[i].style.top    = Game.Wood[level][i].Top+'px';
+                 wooddivarray[i].style.width  = Game.Wood[level][i].Width+'px';
+                 wooddivarray[i].style.height = Game.Wood[level][i].Height+'px';
+             }
+
+         }
 
 
         //-------------------------------------------------------------
+        /****** Old *************
         function SetupGameBoard() {
 
             // Multiple obstacles
@@ -269,11 +352,27 @@
 
         }
 
+         // This function places the obstacle randomly
+         //-------------------------------------------------------------
+         function PlaceObstacle(objObstacle, xmin, xmax, ymin, ymax, wmin, wmax, hmin, hmax) {
+            // Type of object:
+            // 1 => wooden obstacle, 2 => fire obstacle, 3 => gold coin
+            objObstacle.Type = GetRandom(1,3);
+            objObstacle.Width = GetRandom(wmin, wmax);
+            objObstacle.Height = GetRandom(hmin, hmax);
+            objObstacle.Left = GetRandom(xmin, xmax-objObstacle.Width);
+            objObstacle.Top = GetRandom(ymin, ymax-objObstacle.Height);
+            console.log(objObstacle)
+        }
+
+         ******************/
+
         // Event handler
         //-------------------------------------------------------------
         function HandleOrientation(event) {
 
             // Initialize local variables
+            var level    = Game.Level;
             var xCurrent = Game.Ball.Left;
             var yCurrent = Game.Ball.Top;
             var dia = Game.Ball.Dia;
@@ -301,10 +400,10 @@
             var collision = false;
             var collisionData = new Array();
             var numCollisions = 0, idxCollision = 0;
-            for (var i = 0; i < Game.NumObstacles; i++) {
+            for (var i = 0; i < Game.NumWoods[level]; i++) {
                 collisionData[i] = CheckCollisionOutside(xNew, yNew, xCurrent, yCurrent,
-                                                 Game.Obstacles[i].Left-dia, Game.Obstacles[i].Top-dia,
-                                                 Game.Obstacles[i].Width+dia, Game.Obstacles[i].Height+dia);
+                                                    Game.Wood[level][i].Left-dia, Game.Wood[level][i].Top-dia,
+                                                    Game.Wood[level][i].Width+dia, Game.Wood[level][i].Height+dia);
 
                 if (collisionData[i].collision) {
                     numCollisions = numCollisions+1;
@@ -315,13 +414,13 @@
             var drawBall = false;
             if (numCollisions == 0) {
                 drawBall = true;
-                divBall.style.backgroundColor = 'blue';
+                //divBall.style.backgroundColor = 'blue';
             }
             else if (numCollisions == 1) {
                 var drawBall = true;
                 var xNew = collisionData[idxCollision].x;
                 var yNew = collisionData[idxCollision].y;
-                divBall.style.backgroundColor = 'red';
+                //divBall.style.backgroundColor = 'red';
             }
 
             if (drawBall) {
@@ -351,13 +450,10 @@
         // This function places the obstacle randomly
         //-------------------------------------------------------------
         function PlaceObstacle(objObstacle, xmin, xmax, ymin, ymax, wmin, wmax, hmin, hmax) {
-            // Type of object:
-            // 1 => wooden obstacle, 2 => fire obstacle, 3 => gold coin
-            objObstacle.Type = GetRandom(1,3);
-            objObstacle.Width = GetRandom(wmin, wmax);
-            objObstacle.Height = GetRandom(hmin, hmax);
-            objObstacle.Left = GetRandom(xmin, xmax-objObstacle.Width);
-            objObstacle.Top = GetRandom(ymin, ymax-objObstacle.Height);
+            objObstacle.Width   = GetRandom(wmin, wmax);
+            objObstacle.Height  = GetRandom(hmin, hmax);
+            objObstacle.Left    = GetRandom(xmin, xmax-objObstacle.Width);
+            objObstacle.Top     = GetRandom(ymin, ymax-objObstacle.Height);
             console.log(objObstacle)
         }
 
@@ -419,7 +515,9 @@
     <body onload="StartUp()">
 
         <div id="divBoard"></div>
-        <div id="divObstacles"></div>
+        <div id="divWoodObstacles"></div>
+        <div id="divFireObstacles"></div>
+        <div id="divGoldObstacles"></div>
         <div id="divBall"></div>
         <div id="divMessage1"></div>
         <div id="divMessage2"></div>
