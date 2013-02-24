@@ -3,6 +3,19 @@
 <head>
 
     <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, Sans-Serif;
+            font-weight:bold;
+            font-size: 12px;
+        }
+        button{
+            font-family:Arial,Helvetica,sans-serif;
+            font-size:12px;
+            font-weight:bold;
+            text-align:left;
+            border:1px solid #60b4e5;
+            clear:both;
+        }
 
         #divMessage1 {
             border:0px solid blue;
@@ -51,19 +64,32 @@
             border:1px solid blue;
             position:absolute;
             left:0px;
-            background:url(stone.jpeg);
+            background:url(floor3.jpeg);
         }
         #divBall {
             background:url(goldball.png);
             background-size:contain;
-            border:0px solid black;
             box-shadow: 3px 3px 3px black;
-            top:200px;
-            left:50px;
+            position:absolute;
+        }
+        #divGoal {
+            background:url(goal.png);
+            background-size:contain;
             position:absolute;
         }
         .divObsWood {
             background:url(wood.jpeg);
+            position:absolute;
+            box-shadow: 5px 5px 5px black;
+        }
+        .divObsFire {
+            background:url(fire.jpeg);
+            position:absolute;
+            box-shadow: 5px 5px 5px black;
+        }
+        .divObsGold {
+            background:url(goldcoin.png);
+            background-size: contain;
             position:absolute;
             box-shadow: 5px 5px 5px black;
         }
@@ -81,21 +107,28 @@
 
         // Game levels
         Game.NumLevels = 3;
-        Game.Level = 2; //0, 1 or 2
+        Game.Level = 0; // 0 to 2
+        Game.NumBalls = 5;
+        Game.BallNumber = 0; // 0 to 4
         Game.NumWoods = [4, 5, 6];
         Game.NumFires = [3, 4, 5];
         Game.NumGolds = [1, 2, 3];
-
-        var DTOR = Math.PI/180;
+        Game.Score = 0;
 
         // Board layout related variables
-        var DiaPct = 4;
+        var BallDiaPct = 4;
         var BoardTopPct = 5;
+        var GoldDiaPct = 20;
+        var GoalDiaPct = 20;
         var BoardCols = [[0,20],[25,45],[55,75],[80,100]];
         var BoardRows = [[5,25],[30,50],[55,75],[80,100]];
-        var Filled = new Array(4);
-        for (var i=0; i < 4; i++) {
-            Filled[i] = new Array(4);
+        var Filled = new Array(Game.NumLevels);
+        for (var l=0; l < Game.NumLevels; l++) {
+            Filled[l] = new Array(4);
+            for (var i=0; i < 4; i++) {
+                Filled[l][i] = new Array(4);
+            }
+
         }
 
         //-------------------------------------------------------------
@@ -109,6 +142,12 @@
 
             // Setup the game board
             SetupGameBoard();
+
+            // Record start time
+            Game.StartTime = new Date();
+
+            // Start a new game
+            StartNewGame();
         }
 
         //-------------------------------------------------------------
@@ -143,17 +182,23 @@
             Game.Board = new Rectangle(divBoard.offsetTop, divBoard.offsetLeft,
                                        divBoard.clientWidth, divBoard.clientHeight);
 
-            // Setup Menu
-            SetupMenu();
-
             // Ball
             var divBall = document.getElementById('divBall');
-            divBall.style.width = Math.round(WinHeight*DiaPct/100)+'px';
+            divBall.style.width = Math.round(WinHeight*BallDiaPct/100)+'px';
             divBall.style.height = divBall.style.width;
-            divBall.style.borderRadius = Math.round(WinHeight*DiaPct/100/2)+'px';
+            divBall.style.borderRadius = Math.round(WinHeight*BallDiaPct/100/2)+'px';
             Game.Ball = new Rectangle(divBall.offsetTop, divBall.offsetLeft,
                                       divBall.clientWidth, divBall.clientHeight);
             Game.Ball.Dia = divBall.clientWidth;
+
+            // Goal
+            var divGoal = document.getElementById('divGoal');
+            divGoal.style.width = Math.round(WinHeight*GoalDiaPct/100)+'px';
+            divGoal.style.height = divGoal.style.width;
+            divGoal.style.borderRadius = Math.round(WinHeight*GoalDiaPct/100/2)+'px';
+            Game.Goal = new Rectangle(divGoal.offsetTop, divGoal.offsetLeft,
+                                      divGoal.clientWidth, divGoal.clientHeight);
+            Game.Goal.Dia = divGoal.clientWidth;
 
             // Obstacles
             Game.Obstacles = new Array(Game.NumObstacles);
@@ -169,13 +214,19 @@
             }
 
             // Reset the Filled array
-            for (var i=0; i < 4; i++) {
-                for (var j=0; j < 4; j++) {
-                    Filled[i][j]=0;
+            for (var l=0; l < Game.NumLevels; l++) {
+                for (var i=0; i < 4; i++) {
+                    for (var j=0; j < 4; j++) {
+                        Filled[l][i][j]=0;
+                    }
                 }
             }
 
-                // Setup DxMax and DyMax - same as ball dia
+            // Baseline roll and pitch angles for calibrating
+            Game.Roll0 = 0;
+            Game.Pitch0 = 0;
+
+            // Setup DxMax and DyMax - same as ball dia
             Game.DxMax = Game.Ball.Dia;
             Game.DyMax = Game.Ball.Dia;
         }
@@ -183,7 +234,7 @@
         // Setup Menu
         //-------------------------------------------------------------
         function SetupMenu() {
-            var x1=0.0, x2=0.25, x3=0.5, x4=0.6, x5=0.7, x6=0.8, x7=0.9, x8=1.0;
+            var x1=0.0, x2=0.25, x3=0.4, x4=0.5, x5=0.6, x6=0.7, x7=0.8, x8=1.0;
             var menuHeight = Math.round(WinHeight*BoardTopPct/100);
 
             // Message 1
@@ -200,7 +251,7 @@
             divMessage2.style.left = Math.round(WinWidth*x2)+'px';
             divMessage2.style.width = Math.round(WinWidth*(x3-x2))+'px';
             divMessage2.style.height = menuHeight+'px';
-            divMessage2.innerHTML = 'Ball 1 of 3';
+            divMessage2.innerHTML = 'Ball 1 of 5';
 
             // High Scores
             var divHighScores = document.getElementById('divHighScores');
@@ -241,15 +292,22 @@
         //-------------------------------------------------------------
          function SetupGameBoard() {
 
+             // Setup Menu
+             SetupMenu();
+
              // Loop through each level
              for (var l = 0; l < Game.NumLevels; l++) {
 
+                 var rRow, rCol;
+
+                 // Wood obstacles
                  for (var i = 0; i < Game.NumWoods[l]; i++) {
+
                      // Loop until an empty spot is found on the board
                      while (1) {
-                         var rRow = GetRandom(0,3);
-                         var rCol = GetRandom(0,3);
-                         if (Filled[rRow][rCol] == 0)
+                         rRow = GetRandom(0,3);
+                         rCol = GetRandom(0,3);
+                         if (Filled[l][rRow][rCol] == 0)
                             break;
                      }
 
@@ -267,105 +325,199 @@
                      var woodObj = new Object();
                      PlaceObstacle(woodObj, xmin, xmax, ymin, ymax, wmin, wmax, hmin, hmax);
                      Game.Wood[l][i] = woodObj;
-                     Filled[rRow][rCol]=1;
+                     Filled[l][rRow][rCol]=1;
                  }
 
-
                  // Fire obstacles
+                 for (var i = 0; i < Game.NumFires[l]; i++) {
+
+                     // Loop until an empty spot is found on the board
+                     while(1) {
+                         rRow = GetRandom(0,3);
+                         rCol = GetRandom(0,3);
+                         if (Filled[l][rRow][rCol] == 0)
+                             break;
+                     }
+
+                     // Empty spot found
+                     Game.Fire[l][i] = new Object();
+                     var xmin = Math.round(BoardCols[rCol][0]*WinWidth/100);
+                     var xmax = Math.round(BoardCols[rCol][1]*WinWidth/100);
+                     var ymin = Math.round(BoardRows[rRow][0]*WinHeight/100);
+                     var ymax = Math.round(BoardRows[rRow][1]*WinHeight/100);
+                     var wmin = Game.Ball.Dia;
+                     var wmax = xmax-xmin; //2*wmin; // or xmax-xmin
+                     var hmin = 2*Game.Ball.Dia;
+                     var hmax = ymax-ymin;
+
+
+                     var fireObj = new Object();
+                     PlaceObstacle(fireObj, xmin, xmax, ymin, ymax, wmin, wmax, hmin, hmax);
+                     Game.Fire[l][i] = fireObj;
+                     Filled[l][rRow][rCol]=1;
+                 }
 
                  // Gold obstacles
+                 for (var i = 0; i < Game.NumGolds[l]; i++) {
+
+                     // Loop until an empty spot is found on the board
+                     while(1) {
+                         rRow = GetRandom(0,3);
+                         rCol = GetRandom(0,3);
+                         if (Filled[l][rRow][rCol] == 0)
+                             break;
+                     }
+
+                     // Empty spot found
+                     Game.Gold[l][i] = new Object();
+                     var xmin = Math.round(BoardCols[rCol][0]*WinWidth/100);
+                     var xmax = Math.round(BoardCols[rCol][1]*WinWidth/100);
+                     var ymin = Math.round(BoardRows[rRow][0]*WinHeight/100);
+                     var ymax = Math.round(BoardRows[rRow][1]*WinHeight/100);
+                     var wmin = Game.Ball.Dia;
+                     var wmax = xmax-xmin; //2*wmin; // or xmax-xmin
+                     var hmin = 2*Game.Ball.Dia;
+                     var hmax = ymax-ymin;
+
+
+                     var goldObj = new Object();
+                     PlaceObstacle(goldObj, xmin, xmax, ymin, ymax, wmin, wmax, hmin, hmax);
+                     Game.Gold[l][i] = goldObj;
+                     Filled[l][rRow][rCol]=1;
+                 }
              }
-
-             //
-             // Draw the obstacles based on the current game level
-             //
-
-             // Get the current level
-             var level = Game.Level;
-
-             // Create the divs for the wood obstacles
-             var woodStr = "";
-             for (var i = 0; i < Game.NumWoods[level]; i++) {
-                 // Divs for the wood obstacles
-                 var woodid = 'wood_'+ i.toString();
-                 woodStr += "<div class='divObsWood' id='"+woodid+"'></div><br>"
-             }
-             document.getElementById('divWoodObstacles').innerHTML = woodStr;
-
-             var wooddivarray = document.getElementsByClassName('divObsWood');
-
-             // Draw the wood obstacles based on the current level
-             for (var i = 0; i < Game.NumWoods[level]; i++) {
-
-                 wooddivarray[i].style.left   = Game.Wood[level][i].Left+'px';
-                 wooddivarray[i].style.top    = Game.Wood[level][i].Top+'px';
-                 wooddivarray[i].style.width  = Game.Wood[level][i].Width+'px';
-                 wooddivarray[i].style.height = Game.Wood[level][i].Height+'px';
-             }
-
          }
 
-
+        // Start a new game
         //-------------------------------------------------------------
-        /****** Old *************
-        function SetupGameBoard() {
+        function StartNewGame() {
 
-            // Multiple obstacles
-            var numObstacles = Game.NumObstacles;
-            var numXSects = Game.NumXSections;
-            var numYSects = Math.round(numObstacles/numXSects);
-            var boardDeltaX = Game.Board.Width/numXSects;
-            var boardDeltaY = Game.Board.Height/numYSects;
+            //
+            // Draw the obstacles based on the current game level
+            //
+            // Get the current level
+            var level = Game.Level;
+            if (level >= Game.NumLevels)
+                return;
 
-            // Create the divs for the obstacles
-            var obsStr = "";
-            for (var i=0; i < numObstacles; i++) {
-                var obsid = 'obstacle_'+ i.toString();
-                obsStr += "<div class='obstacles' id='"+obsid+"'></div><br>"
+            // Create the divs for the wood obstacles
+            var woodStr = "";
+            for (var i = 0; i < Game.NumWoods[level]; i++) {
+                // Divs for the wood obstacles
+                var woodid = 'wood_'+ i.toString();
+                woodStr += "<div class='divObsWood' id='"+woodid+"'></div><br>"
             }
-            document.getElementById('divObstacles').innerHTML = obsStr;
+            document.getElementById('divWoodObstacles').innerHTML = woodStr;
 
-            // Set the obstacle locations
-            obsdivarray = document.getElementsByClassName('obstacles');
-            for (var i=0; i < obsdivarray.length; i++) {
+            var wooddivarray = document.getElementsByClassName('divObsWood');
 
-                // Initialize the dimensions
-                var obsObj = new Object();
-                Game.Obstacles[i] = obsObj;
+            // Draw the wood obstacles based on the current level
+            for (var i = 0; i < Game.NumWoods[level]; i++) {
 
-                var xoff = Game.Board.Left;
-                var yoff = Game.Board.Top;
-                var bdx = boardDeltaX;
-                var bdy = boardDeltaY;
-                var ii = i%numXSects;
-                var jj = Math.round((i/numXSects)-0.5)%numYSects;
-                console.log(ii,jj)
-
-                PlaceObstacle(obsObj, xoff+bdx*ii, xoff+bdx*(ii+1), yoff+bdy*jj, yoff+bdy*(jj+1), bdx/4, bdx, bdy/4, bdy);
-
-                // Draw the obstacles
-                obsdivarray[i].style.left   = obsObj.Left+'px';
-                obsdivarray[i].style.top    = obsObj.Top+'px';
-                obsdivarray[i].style.width  = obsObj.Width+'px';
-                obsdivarray[i].style.height = obsObj.Height+'px';
+                wooddivarray[i].style.left   = Game.Wood[level][i].Left+'px';
+                wooddivarray[i].style.top    = Game.Wood[level][i].Top+'px';
+                wooddivarray[i].style.width  = Game.Wood[level][i].Width+'px';
+                wooddivarray[i].style.height = Game.Wood[level][i].Height+'px';
             }
 
+            // Create the divs for the fire obstacles
+            var fireStr = "";
+            for (var i = 0; i < Game.NumFires[level]; i++) {
+                // Divs for the fire obstacles
+                var fireid = 'fire_'+ i.toString();
+                fireStr += "<div class='divObsFire' id='"+fireid+"'></div><br>"
+            }
+            document.getElementById('divFireObstacles').innerHTML = fireStr;
+
+            var firedivarray = document.getElementsByClassName('divObsFire');
+
+            // Draw the fire obstacles based on the current level
+            for (var i = 0; i < Game.NumFires[level]; i++) {
+
+                firedivarray[i].style.left   = Game.Fire[level][i].Left+'px';
+                firedivarray[i].style.top    = Game.Fire[level][i].Top+'px';
+                firedivarray[i].style.width  = Game.Fire[level][i].Width+'px';
+                firedivarray[i].style.height = Game.Fire[level][i].Height+'px';
+            }
+
+            // Create the divs for the gold obstacles
+            var goldStr = "";
+            for (var i = 0; i < Game.NumGolds[level]; i++) {
+                // Divs for the gold obstacles
+                var goldid = 'gold_'+ i.toString();
+                goldStr += "<div class='divObsGold' id='"+goldid+"'></div><br>"
+            }
+            document.getElementById('divGoldObstacles').innerHTML = goldStr;
+
+            var golddivarray = document.getElementsByClassName('divObsGold');
+
+            // Draw the gold obstacles based on the current level
+            for (var i = 0; i < Game.NumGolds[level]; i++) {
+                golddivarray[i].style.left   = Game.Gold[level][i].Left+'px';
+                golddivarray[i].style.top    = Game.Gold[level][i].Top+'px';
+                golddivarray[i].style.width = Math.round(WinHeight*GoldDiaPct/100)+'px';
+                golddivarray[i].style.height = golddivarray[i].style.width;
+            }
+
+            // Position the ball
+            // Loop until an empty spot is found on the board for the ball
+            var rColBall, rRowBall;
+            while (1) {
+                rColBall = GetRandom(0,3);
+                rRowBall = GetRandom(0,3);
+                if (Filled[level][rRowBall][rColBall] == 0)
+                    break;
+            }
+
+            // Position of the ball
+            var xmin = Math.round(BoardCols[rColBall][0]*WinWidth/100);
+            var xmax = Math.round(BoardCols[rColBall][1]*WinWidth/100);
+            var ymin = Math.round(BoardRows[rRowBall][0]*WinHeight/100);
+            var ymax = Math.round(BoardRows[rRowBall][1]*WinHeight/100);
+
+            var xReset = GetRandom(xmin, xmax);
+            var yReset = GetRandom(ymin, ymax);
+
+            divBall.style.left = xReset+'px';
+            divBall.style.top = yReset+'px';
+
+            // Update the Game.Ball object
+            Game.Ball.Left = xReset;
+            Game.Ball.Top = yReset;
+
+            // Position the goal
+            // Loop until an empty spot is found on the board
+            var rColGoal, rRowGoal;
+            while (1) {
+                rColGoal = GetRandom(0,3);
+                rRowGoal = GetRandom(0,3);
+                if ((Filled[level][rRowGoal][rColGoal] == 0) &&
+                    !((rRowGoal == rRowBall) && (rColGoal == rColBall))){
+                    break;
+                }
+            }
+
+            // Position of the goal
+            var xmin = Math.round(BoardCols[rColGoal][0]*WinWidth/100);
+            var xmax = Math.round(BoardCols[rColGoal][1]*WinWidth/100);
+            var ymin = Math.round(BoardRows[rRowGoal][0]*WinHeight/100);
+            var ymax = Math.round(BoardRows[rRowGoal][1]*WinHeight/100);
+
+            var xReset = GetRandom(xmin, xmax-Game.Goal.Width);
+            var yReset = GetRandom(ymin, ymax-Game.Goal.Height);
+
+            divGoal.style.left = xReset+'px';
+            divGoal.style.top = yReset+'px';
+
+            // Update the Game.Ball object
+            Game.Goal.Left = xReset;
+            Game.Goal.Top = yReset;
+
+            // Show the remaining number of balls
+            var divMessage2 = document.getElementById('divMessage2');
+            divMessage2.innerHTML = 'Level ' + (level+1) + ' - Ball ' + (Game.BallNumber+1) + ' of ' + Game.NumBalls;
         }
 
-         // This function places the obstacle randomly
-         //-------------------------------------------------------------
-         function PlaceObstacle(objObstacle, xmin, xmax, ymin, ymax, wmin, wmax, hmin, hmax) {
-            // Type of object:
-            // 1 => wooden obstacle, 2 => fire obstacle, 3 => gold coin
-            objObstacle.Type = GetRandom(1,3);
-            objObstacle.Width = GetRandom(wmin, wmax);
-            objObstacle.Height = GetRandom(hmin, hmax);
-            objObstacle.Left = GetRandom(xmin, xmax-objObstacle.Width);
-            objObstacle.Top = GetRandom(ymin, ymax-objObstacle.Height);
-            console.log(objObstacle)
-        }
-
-         ******************/
 
         // Event handler
         //-------------------------------------------------------------
@@ -373,17 +525,32 @@
 
             // Initialize local variables
             var level    = Game.Level;
+            if (level >= Game.NumLevels)
+                return;
+
+            // Refresh the time
+            Game.EndTime = new Date();
+            var timeDiff = (Game.EndTime - Game.StartTime)/1000;
+            var minutes = Math.round((timeDiff/60)-0.5);
+            var seconds = Math.round(timeDiff % 60);
+            var divTime = document.getElementById('divTime');
+            divTime.innerHTML = 'Time  ' + minutes + ':'+ (seconds <= 9 ? '0'+seconds:seconds);
+
             var xCurrent = Game.Ball.Left;
             var yCurrent = Game.Ball.Top;
             var dia = Game.Ball.Dia;
             var divBall = document.getElementById('divBall');
 
             // Read the orientation angles
-            var roll = (-event.gamma)*DTOR; // -90 to +90
-            var pitch = (event.beta)*DTOR; // -180 to +180
+            var roll = (-event.gamma)-Game.Roll0; // -90 to +90
+            var pitch = (event.beta)-Game.Pitch0; // -180 to +180
+
+            // Store the orientation angles for later use
+            Game.Roll = roll;
+            Game.Pitch = pitch;
 
             // Compute the new position
-            var xplier = 300;
+            var xplier = 2;
             var dx = pitch*xplier;
             var dy = roll*xplier;
             if (dx > Game.DxMax) dx = Game.DxMax;
@@ -395,6 +562,84 @@
             var collision1 = CheckCollisionInside(xNew, yNew, Game.Board.Left, Game.Board.Top, Game.Board.Width-dia, Game.Board.Height-dia);
             xNew = collision1.x;
             yNew = collision1.y;
+
+            // Check for collisions with fire
+            for (var i = 0; i < Game.NumFires[level]; i++) {
+                var fireCollision = CheckCollisionOutside(xNew, yNew, xCurrent, yCurrent,
+                        Game.Fire[level][i].Left-dia, Game.Fire[level][i].Top-dia,
+                        Game.Fire[level][i].Width+dia, Game.Fire[level][i].Height+dia);
+
+                if (fireCollision.collision) {
+                    // Increment the ball number
+                    Game.BallNumber++;
+
+                    // If the max number of balls is reached, end the game
+                    if (Game.BallNumber >= Game.NumBalls) {
+                        // Hide the ball
+                        divBall.style.display = "none";
+
+                        // Game over
+                        window.removeEventListener('deviceorientation', HandleOrientation);
+                        var divMessage2 = document.getElementById('divMessage2');
+                        divMessage2.innerHTML = 'Game Over';
+                        return;
+                    }
+                    else {
+                        // Start a new game
+                        StartNewGame();
+                        return;
+                    }
+                }
+            }
+
+            // Check for collisions with gold
+            var divScore = document.getElementById('divScore');
+            for (var i = 0; i < Game.NumGolds[level]; i++) {
+                var goldCollision = CheckCollisionOutside(xNew, yNew, xCurrent, yCurrent,
+                        Game.Gold[level][i].Left-dia, Game.Gold[level][i].Top-dia,
+                        Game.Gold[level][i].Width+dia, Game.Gold[level][i].Height+dia);
+
+                if (goldCollision.collision) {
+                    var divGold = document.getElementById('gold_'+i);
+                    var hiddenStyle = divGold.style.display;
+                    if (hiddenStyle != "none") {
+                        // Increment the score
+                        Game.Score += 10;
+                        divScore.innerHTML = 'Score ' + Game.Score;
+
+                        // Hide the gold and continue the game
+                        divGold.style.display = "none";
+                    }
+                }
+            }
+
+            // Check if the goal is reached
+            var goalReached = IsInside(xNew, yNew, Game.Goal.Left, Game.Goal.Top, Game.Goal.Width, Game.Goal.Height);
+            if (goalReached) {
+                Game.Score += 50;
+                divScore.innerHTML = 'Score ' + Game.Score;
+
+                // Increase the level and start a new game
+                if (Game.Level < Game.NumLevels) {
+                    Game.Level++;
+                }
+
+                //alert('Level = ' + Game.Level + ' Numlevels = ' + Game.NumLevels);
+                if (Game.Level >= Game.NumLevels) {
+                    // Hide the ball
+                    divBall.style.display = "none";
+
+                    // Game over
+                    window.removeEventListener('deviceorientation', HandleOrientation);
+                    var divMessage2 = document.getElementById('divMessage2');
+                    divMessage2.innerHTML = 'Game Over';
+                    return;
+                }
+                else {
+                    StartNewGame();
+                    return;
+                }
+            }
 
             // Check for collisions with any of the obstacles
             var collision = false;
@@ -414,13 +659,11 @@
             var drawBall = false;
             if (numCollisions == 0) {
                 drawBall = true;
-                //divBall.style.backgroundColor = 'blue';
             }
             else if (numCollisions == 1) {
                 var drawBall = true;
                 var xNew = collisionData[idxCollision].x;
                 var yNew = collisionData[idxCollision].y;
-                //divBall.style.backgroundColor = 'red';
             }
 
             if (drawBall) {
@@ -454,7 +697,6 @@
             objObstacle.Height  = GetRandom(hmin, hmax);
             objObstacle.Left    = GetRandom(xmin, xmax-objObstacle.Width);
             objObstacle.Top     = GetRandom(ymin, ymax-objObstacle.Height);
-            console.log(objObstacle)
         }
 
         // This function returns a random number in the specified range
@@ -510,6 +752,11 @@
             return {'collision':collision,  'x':x, 'y':y};
         }
 
+        function Recalibrate() {
+            Game.Roll0 = Game.Roll;
+            Game.Pitch0 = Game.Pitch;
+        }
+
     </script>
     </head>
     <body onload="StartUp()">
@@ -518,14 +765,15 @@
         <div id="divWoodObstacles"></div>
         <div id="divFireObstacles"></div>
         <div id="divGoldObstacles"></div>
+        <div id="divGoal"></div>
         <div id="divBall"></div>
         <div id="divMessage1"></div>
         <div id="divMessage2"></div>
         <button type="button" id="divHighScores">High Scores</button>
-        <button type="button" id="divRecalibrate">Recalibrate</button>
+        <button type="button" id="divRecalibrate" onclick="Recalibrate()">Recalibrate</button>
         <button type="button" id="divPause">Pause</button>
-        <div id="divTime">Time Taken</div>
-        <div id="divScore">Your Score</div>
+        <div id="divTime">Time: 0</div>
+        <div id="divScore">Score 0</div>
 
         <div id="debugDiv1"></div><br>
         <div id="debugDiv2"></div>
