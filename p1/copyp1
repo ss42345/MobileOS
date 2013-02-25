@@ -1,0 +1,22 @@
+#/bin/csh
+#
+# Copy all the files for p1
+#
+echo 'copying files for p1'
+cp fire.jpeg		/site/www/htdocs/asn1/
+cp game.html		/site/www/htdocs/asn1/
+cp gamefunctions.js	/site/www/htdocs/asn1/
+cp goal.png		/site/www/htdocs/asn1/
+cp gold.png		/site/www/htdocs/asn1/
+cp goldball.png		/site/www/htdocs/asn1/
+cp goldcoin.png		/site/www/htdocs/asn1/
+cp grass2.jpeg		/site/www/htdocs/asn1/
+cp leaves.jpeg		/site/www/htdocs/asn1/
+cp main.html		/site/www/htdocs/asn1/
+cp piano.aif		/site/www/htdocs/asn1/
+cp scores.html		/site/www/htdocs/asn1/
+cp stone.jpeg		/site/www/htdocs/asn1/
+cp topfunctions.js	/site/www/htdocs/asn1/
+cp wood.jpeg		/site/www/htdocs/asn1/
+cp highscores.html	/site/www/htdocs/asn1/
+echo 'done copying'

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <style>
+        body {
+            background:url(leaves.jpeg);
+        }
+        button {
+            font-weight:bold;
+            font-family: 'Helvetica Neue', Arial, Sans-Serif;
+            font-size: 20px;
+            color: white;
+            position:absolute;
+            background-color: #b22222;
+            border-radius: 25px;
+            box-shadow: 5px 5px 5px black;
+        }
+
+        #btnBack {
+            top:50px;
+            left:50px;
+            width:100px;
+            height:100px;
+        }
+        #divHighScoresSoFar {
+            font-size: 24px;
+            background-color: #b22222;
+            position:absolute;
+        }
+
+    </style>
+    <script src="gamefunctions.js" type="text/javascript"></script>
+    <script>
+        //--------------------------------------------------------------------
+        function ShowHighScores() {
+            divScores = document.getElementById('divHighScoresSoFar');
+            divScores.style.left = '200px';
+            divScores.style.top = '70px'
+            divScores.innerHTML = "High Score So Far = <b>" + GetHighScores() + "</b>";
+            divScores.style.backgroundColor = "brown";
+            divScores.style.display = "inline";
+        }
+    </script>
+</head>
+<body onload="ShowHighScores()">
+    <button id="btnBack" ontouchstart="BackToMainPage()" >Back</button>
+    <br>
+    <div id="divHighScoresSoFar">High Scores</div>
+</body>
+</html>
