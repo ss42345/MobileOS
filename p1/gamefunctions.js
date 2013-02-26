@@ -20,6 +20,7 @@
     Game.NumFires = [3, 4, 5];
     Game.NumGolds = [1, 2, 3];
     Game.Score = 0;
+    Game.SavedScore = 0;
     Game.HighScore = 0;
     Game.HighScoreThreshold = 160; // Threshold for high score
     Game.Ended = true;
@@ -38,8 +39,6 @@
             Filled[l][i] = new Array(4);
         }
     }
-
-    var socket;
 
     //-------------------------------------------------------------
     function BackToMainPage() {
@@ -64,10 +63,12 @@
 
         // Reset important variables
         Game.StartTime = new Date();
+        Game.TimeDiffSaved = 0;
         Game.Ended = false;
         Game.Level = 0;
         Game.BallNumber = 0;
         Game.Score = 0;
+
     }
 
     //-------------------------------------------------------------
@@ -89,6 +90,7 @@
 
         // Remove all the listeners
         window.removeEventListener("touchstart", PlaySound);
+        window.addEventListener("touchstart", function() {}); // Do nothing
 
         // Orientation events
         if (window.DeviceOrientationEvent) {
@@ -211,11 +213,8 @@
 
     //-------------------------------------------------------------
     function StorePosition(position) {
-        //var divMessage1 = document.getElementById('divMessage1');
-        //divMessage1.innerHTML="Location: (" + position.coords.latitude +
-        //                    ", " + position.coords.longitude + ")";
-        localStorage.latitude = position.coords.latitude;
-        localStorage.longitude = position.coords.longitude;
+        Game.latitude = position.coords.latitude;
+        Game.longitude = position.coords.longitude;
     }
 
     // Setup Menu
@@ -397,10 +396,9 @@
                 var wmax = xmax-xmin; //2*wmin; // or xmax-xmin
                 var hmin = 2*Game.Ball.Dia;
                 var hmax = ymax-ymin;
-
-
                 var goldObj = new Object();
                 PlaceObstacle(goldObj, xmin, xmax, ymin, ymax, wmin, wmax, hmin, hmax);
+
                 Game.Gold[l][i] = goldObj;
                 Filled[l][rRow][rCol]=1;
             }
@@ -418,6 +416,11 @@
 
         AddEventListeners();
         SetUserName();
+
+        // Hide the message popup
+        var divMessage = document.getElementById('divMessage');
+        divMessage.style.display = 'none';
+
         //
         // Draw the obstacles based on the current game level
         //
@@ -481,8 +484,8 @@
         for (var i = 0; i < Game.NumGolds[level]; i++) {
             golddivarray[i].style.left   = Game.Gold[level][i].Left+'px';
             golddivarray[i].style.top    = Game.Gold[level][i].Top+'px';
-            golddivarray[i].style.width = Math.round(WinHeight*GoldDiaPct/100)+'px';
-            golddivarray[i].style.height = golddivarray[i].style.width;
+            golddivarray[i].style.width =  Game.Gold[level][i].Width+'px'; // Math.round(WinHeight*GoldDiaPct/100)+'px';
+            golddivarray[i].style.height = Game.Gold[level][i].Height+'px';
         }
 
         // Position the ball
@@ -555,25 +558,44 @@
     function EndGame() {
 
         // If user is registered, store the user data in localStorage
-        if (Game.UserName) {
-            localStorage.UserName = Game.UserName;
-            localStorage.Score = Game.Score;
-            localStorage.GameTime = Game.TimeStr;
-            if (Game.Score > Game.HighScore) {
-                Game.HighScore = Game.Score;
-            }
-            localStorage.HighScore = Game.HighScore;
-            SetUserLocation();
+        if (Game.Score > Game.HighScore) {
+            Game.HighScore = Game.Score;
+        }
+        localStorage.HighScore = Game.HighScore;
+        SetUserLocation();
 
-            // Submit user's scores
-            //var socket = new WebSocket('ws://e76.technologeeks.com/asn1/scores.php');
-            socket = new WebSocket("ws://echo.websocket.org/");
-            socket.onopen = function(evt) { wsOnOpen(evt) };
-            socket.onclose = function(evt) { wsOnClose(evt) };
-            socket.onmessage = function(evt) { wsOnMessage(evt) };
-            socket.onerror = function(evt) { wsOnError(evt) };
+
+        // Check if high score threshold is crossed, and save the information accordingly
+        if (Game.Score > Game.HighScoreThreshold) {
+            // Store the game statistics
+            var storageObj = new Object();
+            if (Game.UserName) {
+                storageObj.UserName = Game.UserName;
+            }
+            else {
+                storageObj.UserName = "Anonymous";
+            }
+            storageObj.GameTime = Game.TimeStr;
+            storageObj.HighScore = Game.Score;
+
+            // Append the storage data
+            if (!localStorage.index) {
+                localStorage.index = 0;
+            }
+            localStorage.setObj(localStorage.index, storageObj);
+            localStorage.index++;
         }
 
+        // Save the score first locally - socket is called asynchronously
+        Game.SavedScore = Game.Score;
+
+        // Submit user's scores
+        //var socket = new WebSocket('ws://e76.technologeeks.com/asn1/scores.php');
+        Game.Socket = new WebSocket("ws://echo.websocket.org/");
+        Game.Socket.onopen = function(evt) { wsOnOpen(evt) };
+        Game.Socket.onclose = function(evt) { wsOnClose(evt) };
+        Game.Socket.onmessage = function(evt) { wsOnMessage(evt) };
+        Game.Socket.onerror = function(evt) { wsOnError(evt) };
 
         // Hide the ball
         divBall.style.display = "none";
@@ -622,7 +644,7 @@
 
         // Refresh the time
         Game.EndTime = new Date();
-        var timeDiff = (Game.EndTime - Game.StartTime)/1000;
+        var timeDiff = (Game.EndTime - Game.StartTime)/1000 + Game.TimeDiffSaved;
         var minutes = Math.round((timeDiff/60)-0.5);
         var seconds = Math.round(timeDiff % 60);
         var divTime = document.getElementById('divTime');
@@ -863,6 +885,10 @@
 
     //--------------------------------------------------------------------
     function PauseGame() {
+
+        // Save the timer state
+        Game.TimeDiffSaved = (Game.EndTime - Game.StartTime)/1000 + Game.TimeDiffSaved;
+
         // Show the resume button
         ShowResumeButton();
 
@@ -872,6 +898,10 @@
 
     //--------------------------------------------------------------------
     function ResumeGame() {
+
+        // Start the timer
+        Game.StartTime = new Date();
+
         // Show the pause button
         ShowPauseButton();
 
@@ -891,10 +921,16 @@
     }
 
     function GetHighScores() {
-        return localStorage.HighScore;
-
+        var retArray = new Array();
+        for (var i=0; i < localStorage.index; i++) {
+            retArray[i] = localStorage.getObj(i);
+        }
+        return retArray;
     }
 
+    function HighScores() {
+        window.location.href = 'highscores.html';
+    }
     //--------------------------------------------------------------------
     function Recalibrate() {
         Game.Roll0 = Game.Roll;
@@ -902,8 +938,22 @@
     }
 
     function wsOnOpen(evt) {
-        socket.send("Test");
+        var obj = new Object();
+        var usrName;
+        if (Game.UserName) {
+            usrName = Game.UserName;
+        }
+        else {
+            usrName = "Anonymous";
+        }
+        obj['name'] = usrName;
+        obj['time'] = Game.TimeStr;
+        obj['score'] = Game.SavedScore;
+        obj['latitude'] = Game.latitude;
+        obj['longitude'] = Game.longitude;
 
+        var msg = JSON.stringify(obj);
+        Game.Socket.send(msg);
     }
 
     function wsOnError(e) {
@@ -914,10 +964,31 @@
 
     function wsOnMessage(e) {
         // Log messages from the server
-        //alert('Message: ' + e.data);
-        socket.close();
+        //alert('Message: ' + e.data); // as is
+
+        var retobj = JSON.parse(e.data);
+
+        var divMessage = document.getElementById('divMessage');
+        divMessage.style.bottom = '0px';
+        divMessage.style.right = '0px';
+        divMessage.style.display = 'inline';
+        divMessage.innerHTML = ' Information Saved :<br>' +
+                                   '<b> Name :</b> '+retobj.name + '<br>' +
+                                   '<b> Game Time :</b> '+retobj.time + '<br>' +
+                                   '<b> Score :</b> '+retobj.score + '<br>' +
+                                   '<b> Latitude :</b> '+retobj.latitude + '<br>' +
+                                   '<b> Longitude :</b> '+retobj.longitude;
+        Game.Socket.close();
     }
 
     function wsOnClose(e) {
         //alert("Socket closed");
+    }
+
+    // From http://stackoverflow.com/questions/3357553/how-to-store-an-array-in-localstorage
+    Storage.prototype.setObj = function(key, obj) {
+        return this.setItem(key, JSON.stringify(obj))
+    }
+    Storage.prototype.getObj = function(key) {
+        return JSON.parse(this.getItem(key))
     }

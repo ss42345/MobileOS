@@ -20,7 +20,7 @@
         #btnBack {
             top:50px;
             left:50px;
-            width:100px;
+            width:200px;
             height:100px;
         }
         #divHighScoresSoFar {
@@ -35,16 +35,30 @@
         //--------------------------------------------------------------------
         function ShowHighScores() {
             divScores = document.getElementById('divHighScoresSoFar');
-            divScores.style.left = '200px';
+            divScores.style.left = '300px';
             divScores.style.top = '70px'
-            divScores.innerHTML = "High Score So Far = <b>" + GetHighScores() + "</b>";
+            divScores.innerHTML = "High Score So Far = <b>" + 76 + "</b>";
             divScores.style.backgroundColor = "brown";
             divScores.style.display = "inline";
+
+            var highscores = GetHighScores();
+            var msgStr = "<table border='2'><tr><th>User Name</th><th>Game Time</th><th>High Score</th></tr>";
+
+            for (var i=0; i < highscores.length; i++) {
+                var obj = highscores[i];
+                msgStr += '<tr>' +
+                        '<td>'+obj.UserName+'</td>' +
+                        '<td>'+obj.GameTime+'</td>' +
+                        '<td>'+obj.HighScore+'</td>' +
+                        '</tr>';
+            }
+            msgStr += "</table>";
+            divScores.innerHTML = msgStr;
         }
     </script>
 </head>
 <body onload="ShowHighScores()">
-    <button id="btnBack" ontouchstart="BackToMainPage()" >Back</button>
+    <button id="btnBack" ontouchstart="BackToMainPage()" >Back to<br>Main Page</button>
     <br>
     <div id="divHighScoresSoFar">High Scores</div>
 </body>

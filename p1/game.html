@@ -77,6 +77,16 @@
             left:0px;
             background:url(grass2.jpeg);
         }
+        /***************
+         * This is for img sprite - it works so I am leaving it as is
+           but I prefer using the div approach
+        #divBall {
+            background-size:contain;
+            box-shadow: 3px 3px 3px black;
+            position:absolute;
+        }
+        ******************/
+
         #divBall {
             background:url(goldball.png);
             background-size:contain;
@@ -102,8 +112,22 @@
         .divObsGold {
             background:url(goldcoin.png);
             background-size: contain;
+            background-color: #ffd700;
             position:absolute;
             box-shadow: 5px 5px 5px black;
+        }
+
+        #divMessage {
+            font-weight:bold;
+            font-family: 'Helvetica Neue', Arial, Sans-Serif;
+            font-size: 14px;
+            color: white;
+            position:absolute;
+            background-color: #006400;
+            border-radius: 5px;
+            box-shadow: 5px 5px 5px black;
+            padding: 5px;
+            display: none;
         }
 
     </style>
@@ -118,14 +142,19 @@
         <div id="divFireObstacles"></div>
         <div id="divGoldObstacles"></div>
         <div id="divGoal"></div>
+        <!--- As mentioned above the img tag works - so I am leaving it as is
+          --- but I prefer the div approach ------
+        <img id="divBall" src="goldball.png">
+        ------------------------------------------->
         <div id="divBall"></div>
+
         <div id="divMessage1"></div>
         <div id="divUserName">
             Enter your name: <input type="text" id="inputUserName" onblur="SetUserName()">
         </div>
         <button type="button" id="divStart" onclick="StartNewGame()">Start</button>
         <div id="divMessage2"></div>
-        <button type="button" id="divHighScores" onclick="ShowHighScores()">High Scores</button>
+        <button type="button" id="divHighScores" onclick="HighScores()">High Scores</button>
         <button type="button" id="divRecalibrate" onclick="Recalibrate()">Recalibrate</button>
 
         <button type="button" id="divPause" onclick="PauseGame()">Pause</button>
@@ -135,11 +164,6 @@
         <div id="divScore">Score 0</div>
         <audio id="audiotag1" src="piano.aif" preload="auto"></audio>
 
-        <div id="debugDiv1"></div><br>
-        <div id="debugDiv2"></div>
-        <div id="debugDiv3"></div>
-        <div id="debugDiv4"></div>
-        <div id="debugDiv5"></div>
-        <div id="debugDiv6"></div>
+        <div id="divMessage"></div>
     </body>
 </html>

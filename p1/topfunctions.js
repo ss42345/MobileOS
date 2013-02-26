@@ -60,5 +60,6 @@ function HighScores() {
 
 //-------------------------------------------------------------
 function QuitGame() {
+    window.open('', '_self', '');
     window.self.close();
 }
